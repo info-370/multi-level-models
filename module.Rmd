@@ -4,6 +4,8 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
+setwd('~/Documents/info-370/multi-level-models/')
+source('./faculty-data.R')
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -13,7 +15,9 @@ In this module, you'll be familiarized with **multi-level models** as an approac
 - Modeling **patient** health outcomes, where patients are drawn from different _hospitals_
 - Estimating **faculty** salaries, where the faculty are drawm from different _departments_
 
-In each example above the **observations** (**students**, **patients**, **faculty**) belong to different _groups_ (_schools_, _hospitals_, _departments_). These data can be described as **nested** because each observation comes from within a group (and we believe these groups to be important). As you can imagine, there could be some effect at the _group level_, as well as the individual level. For example, a student's college acceptance may depend on _individual predictors_, such as their GPA, number of volunteer activities, and other factors. However, their admissions status may also depend on which _school_ they belong to, based on the reputation of that school, financial aid, or other factors. In this module, we'll explore various (introductory) ways to handle nested data. 
+In each example above the **observations** (**students**, **patients**, **faculty**) belong to different _groups_ (_schools_, _hospitals_, _departments_). These data can be described as **nested** because each observation comes from within a group (and we believe these groups to be related to the outcome). As you can imagine, there could be some effect at the _group level_, as well as the individual level. For example, a student's college acceptance may depend on _individual predictors_, such as their GPA, number of volunteer activities, and other factors. However, their admissions status may also depend on which _school_ they belong to, based on the reputation of that school, financial aid, or other factors. In this module, we'll explore various (introductory) ways to handle nested data. 
+
+Note, while this example uses a linear model (with the `lmer`) function, these approaches can be easily extended to _generalized linear models_ using the `glmer` function.
 
 ## Vocabulary
 There are a variety of different terms that statisticians use to refer to modeling nested data. Confusingly, _many terms_ may refer to the _same procedure_, and many people may use the _same term_ to refer to _different procedures_. The vocabulary introduced here largely comes from this [cannonical text](https://www.amazon.com/Analysis-Regression-Multilevel-Hierarchical-Models/dp/052168689X). 
@@ -21,9 +25,7 @@ There are a variety of different terms that statisticians use to refer to modeli
 - **Multi-level models**: this term refers to modeling strategies for working with nested data. Using one of many possible approaches, these appropriately handle the fact that variables may exist at multiple levels (i.e., a dataset may describe _individuals_ as well as the _cities_ they come from). These are also often refered to as **hierarchical models**, because the data exist in a hierarchical structure (i.e., people within cities)
 
 -  **Fixed effects**: One component of a multi-level model is the set of _fixed effects_ that are estimated. These, in short, are the betas (coefficients) you are familiar with estimating (i.e., each $\beta$ value in this formula): 
-
-  $$y = \beta_0 + \beta_1x_1 + ... + \beta_nx_n$$. 
-
+  $$\hat{y} = \beta_0 + \beta_1x_1 + ... + \beta_nx_n$$
   These effects are considered _fixed_ because they are _constant_ across individuals (observations) in the dataset, and are commonly estimated through least-squares (or, more genearlly, maximum likelihood methods). they While [this text](https://www.amazon.com/Analysis-Regression-Multilevel-Hierarchical-Models/dp/052168689X) prefers to refer to these as **constant slopes** (and intentionally avoids the term _fixed effects_), you will encounter it commonly in other literature.
   
 - **Random effects**: This an an umbrella term referred to ways in which you can incorporate information about _group level variation_ in your model (i.e., variation across the _cities_ that _individuals_ live within). Broadly speaking, one may expect the variation across groups to vary _randomly_, and multi-level models allow you to incorporate that information in various ways. In the section below, we'll describe the ways in which this variation can be built into your model
@@ -35,10 +37,23 @@ As described above, your outcome variable ($y$) may vary based on the _group_ to
 One type of **random effect** is to allow each group to determine the _intercept_ for each observation. Using faculty salary data as an example, it may be the case that each _department_ has a different baseline salary for each faculty member, but the averge increase in salary for each year of experience is consistent across the _University_. This could be written as a _mixed effects_ model as follows:
 
 $$y_i = \alpha_{j[i]} + \beta x_i$$
-In the above formula, the vector of **fixed effects** (constant slopes) is represented by the term $\beta$. The **random intercept**, for individual $i$ group $j$ is denoted as $\alpha_{j[i]}$. Applying this to some (hypothetical) faculty dataset, it could be written as:
+In the above formula, the vector of **fixed effects** (constant slopes) is represented by the term $\beta$. The **random intercept**, for individual $i$ group $j$ is denoted as $\alpha_{j[i]}$. Applying this to the simulated faculty dataset (from `faculty-data.R`), the formula be written as:
 
-$$salary_i = base_{j[i]} + 1500 * experience_i$$
-In this example, a faculty member's salary depends on the **base** salary of department $j$ that person $i$ belongs to ($department_{j[i]}$) plus \$1500 times the amount of experience of individual $i$ ($1500 * experience_i$).
+$$salary_i = department_{j[i]} + 1500 * experience_i$$
+In this example, a faculty member's salary depends on the **base departmnet salary** of department $j$ that person $i$ belongs to ($department_{j[i]}$) plus \$1500 times the amount of experience of individual $i$ ($1500 * experience_i$). This model is easily implement in R using the `lme4` package:
+
+```{r eval=FALSE}
+# Model with varying intercept
+m1 <- lmer(salary ~ experience + (1|department), data = df)
+```
+
+In the above code, the `lmer` function has a **fixed effect** on level of experience, and a **varying intercept** (i.e., _random effect_ for intercept) for the department. The **predicted values** are shown here:
+
+```{r echo=FALSE}
+vary.int.graph
+```
+
+As you can see in the above graph, the predicted salary values increase linearly with experience because of the **fixed effect**. However, each department has a different intercept, because of the **random effect** associated with each department. This explains group level variation in slopes, and helps improve the accuracy of the model (based on our assumption of the faculty salary policy).
 
 ### Varying slope
 Another type of **random effect** is to allow each group to determine the _slope_ for each observation. Using faculty salary data as an example, it may be the case that the University has a constant baseline salary, and each _department_ has a different average incrase in salary for each year of experience. This could be written as a _mixed effects_ model as follows:
@@ -50,6 +65,20 @@ In the above formula, the vector of **random effects** (varying slopes) is repre
 $$salary_i = 20000 + Raise_{j[i]} * experience_i$$
 
 In this example, a faculty member's salary starts at \$20,000 (regardless of department). Estimating their salary requires that you retrieve the estimated slope for departmet $j$ which individual $i$ belongs to ($Raise_{j[i]}$).
+
+A faculty member's salary thus depends on the **base University salary**, and the slope (annual raise) associated with each deparment of department ($Raise_{j[i]}$) This model is easily implement in R using the `lme4` package:
+
+```{r eval=FALSE}
+# Model with varying slope
+m2 <- lmer(salary ~ experience + (0 + experience|department), data=df)
+```
+
+The syntax here is a bit more dense. As suggested in the documentation, `experience` is written to indicate a **fixed and random effect**. This can be thought of as "_random deviations from a fixed mean_" ([source](https://www.r-bloggers.com/random-regression-coefficients-using-lme4/)). Note, the `0` inside the random effect specification indiates that we **do not want a random intercept**. However, this model is quite strange -- because it varies only slope (and not intercept) our predicted values do not follow the data well:
+
+```{r echo=FALSE}
+vary.slope.graph
+```
+
 
 ### Varying slope and intercept
 As you can imagine, we can also specify a model in which the slope and intercept both vary. Continuing with our example, this would imply each department has a different starting salary (_varying intercept_), **and** each department has a different raise associated with each year of experience (_varying slope_). That model can be described as follows:
@@ -63,11 +92,65 @@ $$salary_i = base_{j[i]} + raise_{j[i]}x_i$$
 
 Someone's salary thus depends on the _base salary of their department_ ($base_{j[i]}$) as well as the annual raise associated with each year of experience _in their department_ ($raise_{j[i]}x_i$).
 
-## Put graph here
+This is also easily implelented in R:
+
+```{r eval=FALSE}
+# Model with varying slope and intercept
+m3 <- lmer(salary ~ experience + (1 + experience|department), data=df)
+```
+
+The only difference between this model (`m3`) and the previous model (`m2`) is that the number `1` inside of the random effect specificaiton indicates that we want a random slope **and** a random intercept. As you might expect, the random slopes and intercepts are both captured in our estimates:
+
+```{r echo=FALSE}
+vary.slope.int.graph
+```
+
+This (conceptually) fits our understanding of the university well. Plotting this alongside the data, we can see that this fits our data fairly well:
+
+```{r echo=FALSE}
+model.with.data
+```
+
+## Interpretation
+We'll use similar metrics for interpreting the direction, magnitude, and strength of relationship between our predictors and our outcome of interest. To retrieve coefficient values from an `lmer` model, use the `coef` function as shown here:
+
+```{r}
+coef(m1)$department
+```
+
+As you can see, the **intercept** varies by department for our first model, but the slope is constant. In our third model, both the slope and intercept varied:
+
+```{r}
+coef(m3)$department
+```
+
+We an interprete each of these numbers intuitively: someone the biology department is expected to have a base salary of `r as.integer(coef(m3)[['department']][1,1])`, and each year, their salary should increase by `r as.integer(coef(m3)[['department']][1,2])`. 
 
 
+There are a variety of approaches to estimating pvalues for mixed-models, and the "best practice" is debated (see `?pvalues` for a discussion). However, the authos of [this book](https://www.amazon.com/Analysis-Regression-Multilevel-Hierarchical-Models/dp/052168689X) wrote the `arm` package to accompany their text, which includes helper functions for calculating standard errors of the estimates. They can be extracted using the following functions:
+  
+```{r, eval=FALSE}
+# Get standard errors for fixed effects
+se.fixef(m1)
 
+# Get standard errors for random effects
+se.ranef(m1)
+```
 
+We can then compute confidence intervals as falling within **2 standard errors** of our point estimates. Correspondingly, if these estimates include 0, the relationship is not significant:
+  
+```{r, eval=TRUE}
+# Get coefficients for first model
+coefs <- coef(m1)$department[,1]
 
+# Get standard errors for random effects
+ses <- se.ranef(m1)$department
+upper <- coefs + 2*ses
+lower <- coefs - 2*ses
+bounds <- data.frame(lower, upper)
+colnames(bounds) <- c('lower', 'upper')
+bounds
+```
 
+We can then discuss the uncertainty of our (varying) intercepts. For example, we are 95% confident that the _true intercept_ for the biology department falls between `r as.integer(bounds[1,1])` and `r as.integer(bounds[1,2])`.
 
