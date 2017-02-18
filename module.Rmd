@@ -1,0 +1,73 @@
+---
+title: "Multi-level Models"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this module, you'll be familiarized with **multi-level models** as an approach for modeling _nested data_. You'll frequently encounter nested data structures, for example: 
+
+- Predicting **student** college admissions, where students are drawn from different _high schools_
+- Modeling **patient** health outcomes, where patients are drawn from different _hospitals_
+- Estimating **faculty** salaries, where the faculty are drawm from different _departments_
+
+In each example above the **observations** (**students**, **patients**, **faculty**) belong to different _groups_ (_schools_, _hospitals_, _departments_). These data can be described as **nested** because each observation comes from within a group (and we believe these groups to be important). As you can imagine, there could be some effect at the _group level_, as well as the individual level. For example, a student's college acceptance may depend on _individual predictors_, such as their GPA, number of volunteer activities, and other factors. However, their admissions status may also depend on which _school_ they belong to, based on the reputation of that school, financial aid, or other factors. In this module, we'll explore various (introductory) ways to handle nested data. 
+
+## Vocabulary
+There are a variety of different terms that statisticians use to refer to modeling nested data. Confusingly, _many terms_ may refer to the _same procedure_, and many people may use the _same term_ to refer to _different procedures_. The vocabulary introduced here largely comes from this [cannonical text](https://www.amazon.com/Analysis-Regression-Multilevel-Hierarchical-Models/dp/052168689X). 
+
+- **Multi-level models**: this term refers to modeling strategies for working with nested data. Using one of many possible approaches, these appropriately handle the fact that variables may exist at multiple levels (i.e., a dataset may describe _individuals_ as well as the _cities_ they come from). These are also often refered to as **hierarchical models**, because the data exist in a hierarchical structure (i.e., people within cities)
+
+-  **Fixed effects**: One component of a multi-level model is the set of _fixed effects_ that are estimated. These, in short, are the betas (coefficients) you are familiar with estimating (i.e., each $\beta$ value in this formula): 
+
+  $$y = \beta_0 + \beta_1x_1 + ... + \beta_nx_n$$. 
+
+  These effects are considered _fixed_ because they are _constant_ across individuals (observations) in the dataset, and are commonly estimated through least-squares (or, more genearlly, maximum likelihood methods). they While [this text](https://www.amazon.com/Analysis-Regression-Multilevel-Hierarchical-Models/dp/052168689X) prefers to refer to these as **constant slopes** (and intentionally avoids the term _fixed effects_), you will encounter it commonly in other literature.
+  
+- **Random effects**: This an an umbrella term referred to ways in which you can incorporate information about _group level variation_ in your model (i.e., variation across the _cities_ that _individuals_ live within). Broadly speaking, one may expect the variation across groups to vary _randomly_, and multi-level models allow you to incorporate that information in various ways. In the section below, we'll describe the ways in which this variation can be built into your model
+
+## Group level variation
+As described above, your outcome variable ($y$) may vary based on the _group_ to which each observation belongs. Linear models are comprised of two components: the _intercept_ and _slope_. Appropriately, you may expect an individual's group to determine their baseline _intercept_, or an associated _slope_. 
+
+### Varying Intercept
+One type of **random effect** is to allow each group to determine the _intercept_ for each observation. Using faculty salary data as an example, it may be the case that each _department_ has a different baseline salary for each faculty member, but the averge increase in salary for each year of experience is consistent across the _University_. This could be written as a _mixed effects_ model as follows:
+
+$$y_i = \alpha_{j[i]} + \beta x_i$$
+In the above formula, the vector of **fixed effects** (constant slopes) is represented by the term $\beta$. The **random intercept**, for individual $i$ group $j$ is denoted as $\alpha_{j[i]}$. Applying this to some (hypothetical) faculty dataset, it could be written as:
+
+$$salary_i = base_{j[i]} + 1500 * experience_i$$
+In this example, a faculty member's salary depends on the **base** salary of department $j$ that person $i$ belongs to ($department_{j[i]}$) plus \$1500 times the amount of experience of individual $i$ ($1500 * experience_i$).
+
+### Varying slope
+Another type of **random effect** is to allow each group to determine the _slope_ for each observation. Using faculty salary data as an example, it may be the case that the University has a constant baseline salary, and each _department_ has a different average incrase in salary for each year of experience. This could be written as a _mixed effects_ model as follows:
+
+$$y_i = \alpha + \beta_{j[i]}x_i$$
+
+In the above formula, the vector of **random effects** (varying slopes) is represented by the term $\beta_{j[i]}x_i$. This retrieves the _slope_ for group $j$, of which individual $i$ is a member. The **constant intercept** across individuals is denoted as $\alpha$. Applying this to some (hypothetical) faculty dataset, it could be written as:
+
+$$salary_i = 20000 + Raise_{j[i]} * experience_i$$
+
+In this example, a faculty member's salary starts at \$20,000 (regardless of department). Estimating their salary requires that you retrieve the estimated slope for departmet $j$ which individual $i$ belongs to ($Raise_{j[i]}$).
+
+### Varying slope and intercept
+As you can imagine, we can also specify a model in which the slope and intercept both vary. Continuing with our example, this would imply each department has a different starting salary (_varying intercept_), **and** each department has a different raise associated with each year of experience (_varying slope_). That model can be described as follows:
+
+
+$$y_i = \alpha_{j[i]} + \beta_{j[i]}x_i$$
+Or, using our salary data:
+
+
+$$salary_i = base_{j[i]} + raise_{j[i]}x_i$$
+
+Someone's salary thus depends on the _base salary of their department_ ($base_{j[i]}$) as well as the annual raise associated with each year of experience _in their department_ ($raise_{j[i]}x_i$).
+
+## Put graph here
+
+
+
+
+
+
+
